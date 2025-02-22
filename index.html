@@ -24,7 +24,7 @@
     <button onclick="submitAnswer()">Submit</button>
   </div>
   <div id="feedback"></div>
-  <iframe id="gameFrame" src="https://poki.com/en/g/subway-surfers" class="hidden"></iframe>
+  <iframe id="gameFrame" src="http://slither.io" class="hidden"></iframe>
   <button onclick="toggleAddCardForm()">Add New Card</button>
   <div id="addCardForm">
     <input id="newQuestion" type="text" placeholder="Enter question">
@@ -43,15 +43,14 @@
 
     // Display the current question
     function showNextQuestion() {
-      // Filter cards due for review (based on nextReview timestamp)
       const now = Date.now();
       let dueCards = flashcards.filter(card => card.nextReview <= now);
-      if (dueCards.length === 0) dueCards = flashcards; // Fall back to all cards if none due
+      if (dueCards.length === 0) dueCards = flashcards;
       currentCard = flashcards.indexOf(dueCards[Math.floor(Math.random() * dueCards.length)]);
       
       document.getElementById("question").textContent = flashcards[currentCard].question;
       document.getElementById("answerInput").value = "";
-      showFeedback(""); // Clear previous feedback
+      showFeedback("");
     }
 
     // Handle answer submission
@@ -64,25 +63,24 @@
 
       if (userInput === correctAnswer) {
         card.correct++;
-        card.interval = Math.min(card.interval * 2, 1440); // Double interval, max 1 day (in minutes)
+        card.interval = Math.min(card.interval * 2, 1440);
         showFeedback("Great job!", true);
       } else {
-        card.interval = 1; // Reset to review soon if wrong
+        card.interval = 1;
         showFeedback("Try again! The answer was: " + card.answer, false);
       }
 
-      // Update next review time (in minutes, stored as timestamp)
       card.nextReview = Date.now() + card.interval * 60 * 1000;
       saveFlashcards();
 
       if (attempts >= cardsToAnswer) {
         unlockGame();
       } else {
-        setTimeout(showNextQuestion, 1000); // Delay to show feedback
+        setTimeout(showNextQuestion, 1000);
       }
     }
 
-    // Unlock Poki game for 2 minutes
+    // Unlock Slither.io for 2 minutes
     function unlockGame() {
       document.getElementById("gameFrame").classList.remove("hidden");
       attempts = 0;
@@ -124,7 +122,7 @@
           answer,
           attempts: 0,
           correct: 0,
-          interval: 1, // Start with 1-minute interval
+          interval: 1,
           nextReview: 0
         });
         saveFlashcards();
