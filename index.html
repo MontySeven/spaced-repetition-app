@@ -36,7 +36,8 @@
     <button onclick="startListening()">Speak</button>
     <button onclick="showSettings()">Settings</button>
     <div id="feedback"></div>
-    <iframe id="gameFrame" src="https://slither.io" class="hidden"></iframe>
+    <iframe id="gameFrame" src="https://slither.io" class="hidden" allowfullscreen></iframe>
+    <div id="gameFallback" class="hidden">Game failed to load. <a href="https://slither.io" target="_blank">Play here instead!</a></div>
   </div>
 
   <!-- Settings Screen -->
@@ -98,6 +99,7 @@
       document.getElementById("word").textContent = nextWord.word;
       attempts = 0;
       showFeedback("");
+      console.log("Showing word:", nextWord.word, "Cards cycled:", cardsCycled);
     }
 
     // Start speech recognition
@@ -117,7 +119,6 @@
       word.attempts++;
       const { isCorrect, matchPercent } = isMatch(spoken, target);
       
-      // Show feedback with spoken text and % match
       const feedbackText = `Heard: "${spoken}" (${Math.round(matchPercent * 100)}%) - ${isCorrect ? "Correct!" : "Try again!"}`;
       showFeedback(feedbackText, isCorrect);
 
@@ -158,6 +159,7 @@
     // Move to next word or game
     function nextStep() {
       cardsCycled++;
+      console.log("Next step - Cards cycled:", cardsCycled);
       if (cardsCycled >= cardsPerCycle) {
         unlockGame();
       } else {
@@ -167,14 +169,29 @@
 
     // Unlock Slither.io
     function unlockGame() {
+      console.log("Unlocking game...");
       cardsCycled = 0;
-      document.getElementById("gameFrame").classList.remove("hidden");
+      const gameFrame = document.getElementById("gameFrame");
+      gameFrame.classList.remove("hidden");
+      gameFrame.src = "https://slither.io"; // Reload to ensure fresh load
+      document.getElementById("gameFallback").classList.add("hidden");
+      
+      // Check if iframe loaded
+      gameFrame.onload = () => console.log("Slither.io iframe loaded successfully");
+      gameFrame.onerror = () => {
+        console.error("Slither.io failed to load");
+        gameFrame.classList.add("hidden");
+        document.getElementById("gameFallback").classList.remove("hidden");
+      };
+      
       setTimeout(pauseGame, 120000); // 2 minutes
     }
 
     // Pause game
     function pauseGame() {
+      console.log("Pausing game...");
       document.getElementById("gameFrame").classList.add("hidden");
+      document.getElementById("gameFallback").classList.add("hidden");
       showNextWord();
     }
 
