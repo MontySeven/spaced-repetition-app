@@ -110,19 +110,22 @@
       recognition.start();
     }
 
-    // Check spoken answer with forgiveness
+    // Check spoken answer with feedback
     function checkAnswer(spoken, target) {
       const word = words.find(w => w.word === target);
       attempts++;
       word.attempts++;
-      const isCorrect = isMatch(spoken, target);
+      const { isCorrect, matchPercent } = isMatch(spoken, target);
+      
+      // Show feedback with spoken text and % match
+      const feedbackText = `Heard: "${spoken}" (${Math.round(matchPercent * 100)}%) - ${isCorrect ? "Correct!" : "Try again!"}`;
+      showFeedback(feedbackText, isCorrect);
+
       if (isCorrect) {
         word.correct++;
         word.interval = Math.min(word.interval * 2, 1440); // Max 1 day
-        showFeedback("Great job!", true);
       } else {
         word.interval = 1;
-        showFeedback(`You said "${spoken}". Try again!`, false);
       }
       word.nextReview = Date.now() + word.interval * 60 * 1000;
       saveData();
@@ -130,15 +133,15 @@
       if (isCorrect || attempts >= maxAttempts) {
         if (attempts >= maxAttempts) {
           speakWord(target);
-          showFeedback(`Listen: "${target}"`, false);
+          showFeedback(`Listen: "${target}" (${Math.round(matchPercent * 100)}%)`, false);
           setTimeout(nextStep, 2000);
         } else {
-          nextStep();
+          setTimeout(nextStep, 2000); // Delay to show feedback
         }
       }
     }
 
-    // Fuzzy matching for 6-year-old pronunciation
+    // Fuzzy matching with % calculation
     function isMatch(spoken, target) {
       spoken = spoken.replace(/s$/, ""); // Ignore plurals
       target = target.replace(/s$/, "");
@@ -146,10 +149,10 @@
         "the": ["thee"], "and": ["an"], "you": ["u"], "to": ["too", "two"]
       };
       const threshold = 0.75; // 75% match
-      if (spoken === target) return true;
-      if (homophones[target]?.includes(spoken)) return true;
+      if (spoken === target) return { isCorrect: true, matchPercent: 1 };
+      if (homophones[target]?.includes(spoken)) return { isCorrect: true, matchPercent: 1 };
       const similarity = (spoken.split("").filter(c => target.includes(c)).length / Math.max(spoken.length, target.length));
-      return similarity >= threshold;
+      return { isCorrect: similarity >= threshold, matchPercent: similarity };
     }
 
     // Move to next word or game
@@ -158,14 +161,14 @@
       if (cardsCycled >= cardsPerCycle) {
         unlockGame();
       } else {
-        setTimeout(showNextWord, 1000);
+        showNextWord();
       }
     }
 
     // Unlock Slither.io
     function unlockGame() {
-      document.getElementById("gameFrame").classList.remove("hidden");
       cardsCycled = 0;
+      document.getElementById("gameFrame").classList.remove("hidden");
       setTimeout(pauseGame, 120000); // 2 minutes
     }
 
