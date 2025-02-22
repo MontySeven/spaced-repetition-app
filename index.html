@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial; text-align: center; background: #f0f8ff; }
+    #card, #addCardForm { margin: 20px; }
+    #question { font-size: 24px; color: #333; }
+    #answerInput { padding: 10px; font-size: 16px; }
+    #feedback { font-size: 20px; margin: 10px; transition: opacity 0.5s; }
+    button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:hover { background: #45a049; }
+    #gameFrame { width: 80%; height: 400px; border: none; }
+    #addCardForm { display: none; }
+    input { margin: 5px; padding: 8px; }
+    .hidden { display: none; }
+    .fade-in { opacity: 1; }
+    .fade-out { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div id="card">
+    <p id="question"></p>
+    <input id="answerInput" type="text" placeholder="Your answer">
+    <button onclick="submitAnswer()">Submit</button>
+  </div>
+  <div id="feedback"></div>
+  <iframe id="gameFrame" src="https://poki.com/en/g/subway-surfers" class="hidden"></iframe>
+  <button onclick="toggleAddCardForm()">Add New Card</button>
+  <div id="addCardForm">
+    <input id="newQuestion" type="text" placeholder="Enter question">
+    <input id="newAnswer" type="text" placeholder="Enter answer">
+    <button onclick="addCard()">Save Card</button>
+  </div>
+
+  <script>
+    // Load flashcards from localStorage or use defaults
+    let flashcards = JSON.parse(localStorage.getItem("flashcards")) || [
+      { question: "What is 2 + 2?", answer: "4", attempts: 0, correct: 0, interval: 1, nextReview: 0 }
+    ];
+    let currentCard = 0;
+    let attempts = 0;
+    const cardsToAnswer = 3; // Answer 3 cards to unlock game
+
+    // Display the current question
+    function showNextQuestion() {
+      // Filter cards due for review (based on nextReview timestamp)
+      const now = Date.now();
+      let dueCards = flashcards.filter(card => card.nextReview <= now);
+      if (dueCards.length === 0) dueCards = flashcards; // Fall back to all cards if none due
+      currentCard = flashcards.indexOf(dueCards[Math.floor(Math.random() * dueCards.length)]);
+      
+      document.getElementById("question").textContent = flashcards[currentCard].question;
+      document.getElementById("answerInput").value = "";
+      showFeedback(""); // Clear previous feedback
+    }
+
+    // Handle answer submission
+    function submitAnswer() {
+      let userInput = document.getElementById("answerInput").value.trim().toLowerCase();
+      let card = flashcards[currentCard];
+      let correctAnswer = card.answer.toLowerCase();
+      attempts++;
+      card.attempts++;
+
+      if (userInput === correctAnswer) {
+        card.correct++;
+        card.interval = Math.min(card.interval * 2, 1440); // Double interval, max 1 day (in minutes)
+        showFeedback("Great job!", true);
+      } else {
+        card.interval = 1; // Reset to review soon if wrong
+        showFeedback("Try again! The answer was: " + card.answer, false);
+      }
+
+      // Update next review time (in minutes, stored as timestamp)
+      card.nextReview = Date.now() + card.interval * 60 * 1000;
+      saveFlashcards();
+
+      if (attempts >= cardsToAnswer) {
+        unlockGame();
+      } else {
+        setTimeout(showNextQuestion, 1000); // Delay to show feedback
+      }
+    }
+
+    // Unlock Poki game for 2 minutes
+    function unlockGame() {
+      document.getElementById("gameFrame").classList.remove("hidden");
+      attempts = 0;
+      setTimeout(pauseGame, 120000); // 2 minutes
+    }
+
+    // Pause game and return to questions
+    function pauseGame() {
+      document.getElementById("gameFrame").classList.add("hidden");
+      showNextQuestion();
+    }
+
+    // Show feedback with animation
+    function showFeedback(message, isCorrect) {
+      const feedback = document.getElementById("feedback");
+      feedback.textContent = message;
+      feedback.style.color = isCorrect ? "#4CAF50" : "#ff4444";
+      feedback.classList.remove("fade-in");
+      feedback.classList.add("fade-out");
+      setTimeout(() => {
+        feedback.classList.remove("fade-out");
+        feedback.classList.add("fade-in");
+      }, 10);
+    }
+
+    // Toggle add card form visibility
+    function toggleAddCardForm() {
+      const form = document.getElementById("addCardForm");
+      form.style.display = form.style.display === "block" ? "none" : "block";
+    }
+
+    // Add a new card
+    function addCard() {
+      const question = document.getElementById("newQuestion").value.trim();
+      const answer = document.getElementById("newAnswer").value.trim();
+      if (question && answer) {
+        flashcards.push({
+          question,
+          answer,
+          attempts: 0,
+          correct: 0,
+          interval: 1, // Start with 1-minute interval
+          nextReview: 0
+        });
+        saveFlashcards();
+        document.getElementById("newQuestion").value = "";
+        document.getElementById("newAnswer").value = "";
+        toggleAddCardForm();
+        showFeedback("Card added!", true);
+      } else {
+        showFeedback("Please enter a question and answer!", false);
+      }
+    }
+
+    // Save flashcards to localStorage
+    function saveFlashcards() {
+      localStorage.setItem("flashcards", JSON.stringify(flashcards));
+    }
+
+    // Start the app
+    showNextQuestion();
+  </script>
+</body>
+</html>
