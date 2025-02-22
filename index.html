@@ -1,264 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Sight Words with Slither.io</title>
+  <title>Slither.io Embed Test</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background: #f0f8ff; margin: 0; }
-    h1 { color: #333; }
-    #login, #game, #settings { margin: 20px; }
-    #word { font-size: 36px; color: #4CAF50; }
-    #feedback { font-size: 24px; margin: 10px; transition: opacity 0.5s; }
-    button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; margin: 5px; }
-    button:hover { background: #45a049; }
-    #gameFrame { width: 80%; height: 400px; border: none; }
-    .hidden { display: none; }
-    .fade-in { opacity: 1; }
-    .fade-out { opacity: 0; }
-    textarea { width: 300px; height: 100px; }
-    table { margin: 20px auto; border-collapse: collapse; }
-    th, td { padding: 8px; border: 1px solid #ddd; }
+    body { text-align: center; font-family: Arial, sans-serif; margin: 20px; }
+    #gameFrame { width: 80%; height: 600px; border: none; }
+    #status { font-size: 20px; margin: 10px; }
   </style>
 </head>
 <body>
-  <!-- Login Screen -->
-  <div id="login">
-    <h1>Welcome!</h1>
-    <input id="name" type="text" placeholder="Your Name">
-    <input id="pin" type="number" maxlength="3" placeholder="3-Digit PIN">
-    <button onclick="login()">Login / Create Account</button>
-  </div>
-
-  <!-- Main Game Screen -->
-  <div id="game" class="hidden">
-    <h1>Sight Words</h1>
-    <p>Read this out loud:</p>
-    <p id="word"></p>
-    <button onclick="startListening()">Speak</button>
-    <button onclick="showSettings()">Settings</button>
-    <div id="feedback"></div>
-    <iframe id="gameFrame" src="https://slither.io" class="hidden" allowfullscreen></iframe>
-    <div id="gameFallback" class="hidden">Game failed to load. <a href="https://slither.io" target="_blank">Play here instead!</a></div>
-  </div>
-
-  <!-- Settings Screen -->
-  <div id="settings" class="hidden">
-    <h1>Settings</h1>
-    <textarea id="wordList" placeholder="Add words (e.g., cat, dog, run)"></textarea><br>
-    <button onclick="addWords()">Add Words</button>
-    <button onclick="clearWords()">Clear All Words</button><br>
-    <button onclick="showGame()">Back to Game</button>
-    <table id="wordStats">
-      <thead><tr><th>Word</th><th>Correct</th><th>Attempts</th><th>% Correct</th></tr></thead>
-      <tbody id="statsBody"></tbody>
-    </table>
-  </div>
+  <h1>Slither.io Test</h1>
+  <iframe id="gameFrame" src="https://slither.io" allowfullscreen></iframe>
+  <div id="status">Loading...</div>
 
   <script>
-    let userData = JSON.parse(localStorage.getItem("sightWordsUsers")) || {};
-    let currentUser = null;
-    let words = [];
-    let attempts = 0;
-    let cardsCycled = 0;
-    const maxAttempts = 3;
-    const cardsPerCycle = 3;
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.continuous = false;
-    recognition.lang = "en-US";
+    const gameFrame = document.getElementById("gameFrame");
+    const status = document.getElementById("status");
 
-    // Login / Account Creation
-    function login() {
-      const name = document.getElementById("name").value.trim();
-      const pin = document.getElementById("pin").value.padStart(3, "0");
-      if (name && pin.length === 3) {
-        const userKey = `${name}-${pin}`;
-        if (!userData[userKey]) {
-          userData[userKey] = { words: [
-            { word: "the", correct: 0, attempts: 0, interval: 1, nextReview: 0 },
-            { word: "and", correct: 0, attempts: 0, interval: 1, nextReview: 0 },
-            { word: "you", correct: 0, attempts: 0, interval: 1, nextReview: 0 }
-          ]};
-        }
-        currentUser = userKey;
-        words = userData[userKey].words;
-        saveData();
-        document.getElementById("login").classList.add("hidden");
-        document.getElementById("game").classList.remove("hidden");
-        showNextWord();
-      } else {
-        alert("Enter a name and a 3-digit PIN!");
+    gameFrame.onload = () => {
+      console.log("Iframe loaded successfully");
+      status.textContent = "Game loaded!";
+    };
+
+    gameFrame.onerror = () => {
+      console.error("Iframe failed to load");
+      status.textContent = "Failed to load game. It might be blocked.";
+    };
+
+    // Timeout to check if nothing happens
+    setTimeout(() => {
+      if (status.textContent === "Loading...") {
+        status.textContent = "No response. Likely blocked by slither.io.";
       }
-    }
-
-    // Show next word with spaced repetition
-    function showNextWord() {
-      const now = Date.now();
-      let dueWords = words.filter(w => w.nextReview <= now);
-      if (dueWords.length === 0) dueWords = words;
-      dueWords.sort((a, b) => (b.correct / (b.attempts || 1)) - (a.correct / (a.attempts || 1))); // Worst first
-      const nextWord = dueWords[0];
-      document.getElementById("word").textContent = nextWord.word;
-      attempts = 0;
-      showFeedback("");
-      console.log("Showing word:", nextWord.word, "Cards cycled:", cardsCycled);
-    }
-
-    // Start speech recognition
-    function startListening() {
-      recognition.onresult = (event) => {
-        const spoken = event.results[0][0].transcript.toLowerCase().trim();
-        checkAnswer(spoken, document.getElementById("word").textContent.toLowerCase());
-      };
-      recognition.onerror = () => showFeedback("I couldn't hear you!", false);
-      recognition.start();
-    }
-
-    // Check spoken answer with feedback
-    function checkAnswer(spoken, target) {
-      const word = words.find(w => w.word === target);
-      attempts++;
-      word.attempts++;
-      const { isCorrect, matchPercent } = isMatch(spoken, target);
-      
-      const feedbackText = `Heard: "${spoken}" (${Math.round(matchPercent * 100)}%) - ${isCorrect ? "Correct!" : "Try again!"}`;
-      showFeedback(feedbackText, isCorrect);
-
-      if (isCorrect) {
-        word.correct++;
-        word.interval = Math.min(word.interval * 2, 1440); // Max 1 day
-      } else {
-        word.interval = 1;
-      }
-      word.nextReview = Date.now() + word.interval * 60 * 1000;
-      saveData();
-
-      if (isCorrect || attempts >= maxAttempts) {
-        if (attempts >= maxAttempts) {
-          speakWord(target);
-          showFeedback(`Listen: "${target}" (${Math.round(matchPercent * 100)}%)`, false);
-          setTimeout(nextStep, 2000);
-        } else {
-          setTimeout(nextStep, 2000); // Delay to show feedback
-        }
-      }
-    }
-
-    // Fuzzy matching with % calculation
-    function isMatch(spoken, target) {
-      spoken = spoken.replace(/s$/, ""); // Ignore plurals
-      target = target.replace(/s$/, "");
-      const homophones = {
-        "the": ["thee"], "and": ["an"], "you": ["u"], "to": ["too", "two"]
-      };
-      const threshold = 0.75; // 75% match
-      if (spoken === target) return { isCorrect: true, matchPercent: 1 };
-      if (homophones[target]?.includes(spoken)) return { isCorrect: true, matchPercent: 1 };
-      const similarity = (spoken.split("").filter(c => target.includes(c)).length / Math.max(spoken.length, target.length));
-      return { isCorrect: similarity >= threshold, matchPercent: similarity };
-    }
-
-    // Move to next word or game
-    function nextStep() {
-      cardsCycled++;
-      console.log("Next step - Cards cycled:", cardsCycled);
-      if (cardsCycled >= cardsPerCycle) {
-        unlockGame();
-      } else {
-        showNextWord();
-      }
-    }
-
-    // Unlock Slither.io
-    function unlockGame() {
-      console.log("Unlocking game...");
-      cardsCycled = 0;
-      const gameFrame = document.getElementById("gameFrame");
-      gameFrame.classList.remove("hidden");
-      gameFrame.src = "https://slither.io"; // Reload to ensure fresh load
-      document.getElementById("gameFallback").classList.add("hidden");
-      
-      // Check if iframe loaded
-      gameFrame.onload = () => console.log("Slither.io iframe loaded successfully");
-      gameFrame.onerror = () => {
-        console.error("Slither.io failed to load");
-        gameFrame.classList.add("hidden");
-        document.getElementById("gameFallback").classList.remove("hidden");
-      };
-      
-      setTimeout(pauseGame, 120000); // 2 minutes
-    }
-
-    // Pause game
-    function pauseGame() {
-      console.log("Pausing game...");
-      document.getElementById("gameFrame").classList.add("hidden");
-      document.getElementById("gameFallback").classList.add("hidden");
-      showNextWord();
-    }
-
-    // Text-to-speech for feedback
-    function speakWord(word) {
-      const utterance = new SpeechSynthesisUtterance(word);
-      utterance.rate = 0.8; // Slower for clarity
-      window.speechSynthesis.speak(utterance);
-    }
-
-    // Show feedback
-    function showFeedback(message, isCorrect) {
-      const feedback = document.getElementById("feedback");
-      feedback.textContent = message;
-      feedback.style.color = isCorrect ? "#4CAF50" : "#ff4444";
-      feedback.classList.remove("fade-in");
-      feedback.classList.add("fade-out");
-      setTimeout(() => {
-        feedback.classList.remove("fade-out");
-        feedback.classList.add("fade-in");
-      }, 10);
-    }
-
-    // Settings Page
-    function showSettings() {
-      document.getElementById("game").classList.add("hidden");
-      document.getElementById("settings").classList.remove("hidden");
-      updateStatsTable();
-    }
-
-    function showGame() {
-      document.getElementById("settings").classList.add("hidden");
-      document.getElementById("game").classList.remove("hidden");
-      showNextWord();
-    }
-
-    function addWords() {
-      const input = document.getElementById("wordList").value.trim();
-      const newWords = input.split(",").map(w => w.trim().toLowerCase()).filter(w => w && !words.some(x => x.word === w));
-      newWords.forEach(w => words.push({ word: w, correct: 0, attempts: 0, interval: 1, nextReview: 0 }));
-      saveData();
-      document.getElementById("wordList").value = "";
-      updateStatsTable();
-    }
-
-    function clearWords() {
-      words.length = 0;
-      saveData();
-      updateStatsTable();
-    }
-
-    function updateStatsTable() {
-      const tbody = document.getElementById("statsBody");
-      tbody.innerHTML = "";
-      words.sort((a, b) => (b.correct / (b.attempts || 1)) - (a.correct / (a.attempts || 1))); // Best to worst
-      words.forEach(w => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${w.word}</td><td>${w.correct}</td><td>${w.attempts}</td><td>${Math.round((w.correct / (w.attempts || 1)) * 100)}%</td>`;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Save user data
-    function saveData() {
-      userData[currentUser].words = words;
-      localStorage.setItem("sightWordsUsers", JSON.stringify(userData));
-    }
+    }, 5000);
   </script>
 </body>
 </html>
