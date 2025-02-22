@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Slither.io Embed Test</title>
+  <title>Poki Game Embed Test</title>
   <style>
     body { text-align: center; font-family: Arial, sans-serif; margin: 20px; }
     #gameFrame { width: 80%; height: 600px; border: none; }
@@ -9,8 +9,8 @@
   </style>
 </head>
 <body>
-  <h1>Slither.io Test</h1>
-  <iframe id="gameFrame" src="https://slither.io" allowfullscreen></iframe>
+  <h1>Poki Game Test</h1>
+  <iframe id="gameFrame" src="https://poki.com/en/g/subway-surfers" allowfullscreen></iframe>
   <div id="status">Loading...</div>
 
   <script>
@@ -24,13 +24,13 @@
 
     gameFrame.onerror = () => {
       console.error("Iframe failed to load");
-      status.textContent = "Failed to load game. It might be blocked.";
+      status.textContent = "Failed to load game. Check the console for errors.";
     };
 
     // Timeout to check if nothing happens
     setTimeout(() => {
       if (status.textContent === "Loading...") {
-        status.textContent = "No response. Likely blocked by slither.io.";
+        status.textContent = "No response. Game might be blocked or URL incorrect.";
       }
     }, 5000);
   </script>
